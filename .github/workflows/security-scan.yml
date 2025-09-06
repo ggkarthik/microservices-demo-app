@@ -70,3 +70,75 @@ jobs:
         uses: github/codeql-action/upload-sarif@v2
         with:
           sarif_file: 'trivy-results-fs.sarif'
+          
+  trivy-config-scan:
+    name: Trivy IaC and Config Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        
+      - name: Run Trivy IaC scan for Kubernetes manifests
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'config'
+          scan-ref: './kubernetes-manifests'
+          format: 'sarif'
+          output: 'trivy-k8s-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          
+      - name: Run Trivy IaC scan for Terraform
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'config'
+          scan-ref: './terraform'
+          format: 'sarif'
+          output: 'trivy-terraform-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          
+      - name: Run Trivy IaC scan for Dockerfiles
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'config'
+          scan-ref: './src'
+          format: 'sarif'
+          output: 'trivy-dockerfile-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          
+      - name: Upload Trivy K8s scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-k8s-results.sarif'
+          
+      - name: Upload Trivy Terraform scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-terraform-results.sarif'
+          
+      - name: Upload Trivy Dockerfile scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-dockerfile-results.sarif'
+
+  codeql-extended:
+    name: CodeQL Extended Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          languages: go, javascript, python, java, csharp
+          queries: security-extended,security-and-quality
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v2
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
