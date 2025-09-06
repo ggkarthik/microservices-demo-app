@@ -168,6 +168,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: ./src/${{ matrix.service }}
+          file: ${{ matrix.service == 'cartservice' && './src/cartservice/src/Dockerfile' || '' }}
           push: false
           load: true
           tags: ${{ env.REGISTRY }}/${{ env.OWNER }}/microservices-demo-${{ matrix.service }}:${{ github.sha }}
@@ -251,6 +252,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: ./src/${{ matrix.service }}
+          file: ${{ matrix.service == 'cartservice' && './src/cartservice/src/Dockerfile' || '' }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
