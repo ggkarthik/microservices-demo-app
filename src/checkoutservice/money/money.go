@@ -27,7 +27,9 @@ const (
 )
 
 var (
+	// ErrInvalidValue is returned when a money value is invalid
 	ErrInvalidValue        = errors.New("one of the specified money values is invalid")
+	// ErrMismatchingCurrency is returned when currencies don't match
 	ErrMismatchingCurrency = errors.New("mismatching currency codes")
 )
 
@@ -40,46 +42,49 @@ func signMatches(m pb.Money) bool {
 	return m.GetNanos() == 0 || m.GetUnits() == 0 || (m.GetNanos() < 0) == (m.GetUnits() < 0)
 }
 
-func validNanos(nanos int32) bool { return nanosMin <= nanos && nanos <= nanosMax }
+func validNanos(nanos int32) bool {
+	return nanosMin <= nanos && nanos <= nanosMax
+}
 
-// IsZero returns true if the specified money value is equal to zero.
-func IsZero(m pb.Money) bool { return m.GetUnits() == 0 && m.GetNanos() == 0 }
+// IsZero returns true if the specified money value is zero.
+func IsZero(m pb.Money) bool {
+	return m.GetUnits() == 0 && m.GetNanos() == 0
+}
 
-// IsPositive returns true if the specified money value is valid and is
-// positive.
+// IsPositive returns true if the specified money value is positive.
 func IsPositive(m pb.Money) bool {
-	return IsValid(m) && m.GetUnits() > 0 || (m.GetUnits() == 0 && m.GetNanos() > 0)
+	return IsValid(m) && (m.GetUnits() > 0 || (m.GetUnits() == 0 && m.GetNanos() > 0))
 }
 
-// IsNegative returns true if the specified money value is valid and is
-// negative.
+// IsNegative returns true if the specified money value is negative.
 func IsNegative(m pb.Money) bool {
-	return IsValid(m) && m.GetUnits() < 0 || (m.GetUnits() == 0 && m.GetNanos() < 0)
+	return IsValid(m) && (m.GetUnits() < 0 || (m.GetUnits() == 0 && m.GetNanos() < 0))
 }
 
-// AreSameCurrency returns true if values l and r have a currency code and
-// they are the same values.
-func AreSameCurrency(l, r pb.Money) bool {
-	return l.GetCurrencyCode() == r.GetCurrencyCode() && l.GetCurrencyCode() != ""
+// AreSameCurrency returns true if values a and b have a currency code and they are the same values.
+func AreSameCurrency(a, b pb.Money) bool {
+	return a.GetCurrencyCode() == b.GetCurrencyCode() && a.GetCurrencyCode() != ""
 }
 
-// AreEquals returns true if values l and r are the equal, including the
-// currency. This does not check validity of the provided values.
-func AreEquals(l, r pb.Money) bool {
-	return l.GetCurrencyCode() == r.GetCurrencyCode() &&
-		l.GetUnits() == r.GetUnits() && l.GetNanos() == r.GetNanos()
+// AreEquals returns true if values a and b are the same. This only works when values
+// are of the same currency or don't have currency code.
+func AreEquals(a, b pb.Money) bool {
+	return a.GetUnits() == b.GetUnits() && a.GetNanos() == b.GetNanos()
 }
 
 // Negate returns the same amount with the sign negated.
-func Negate(m pb.Money) pb.Money {
+func Negate(m pb.Money) (pb.Money, error) {
+	if !IsValid(m) {
+		return pb.Money{}, ErrInvalidValue
+	}
 	return pb.Money{
 		Units:        -m.GetUnits(),
 		Nanos:        -m.GetNanos(),
-		CurrencyCode: m.GetCurrencyCode()}
+		CurrencyCode: m.GetCurrencyCode()}, nil
 }
 
-// Must panics if the given error is not nil. This can be used with other
-// functions like: "m := Must(Sum(a,b))".
+// Must panics if the error is not nil. This can be used with other functions like:
+// money.Must(money.Sum(a,b))
 func Must(v pb.Money, err error) pb.Money {
 	if err != nil {
 		panic(err)
@@ -87,24 +92,23 @@ func Must(v pb.Money, err error) pb.Money {
 	return v
 }
 
-// Sum adds two values. Returns an error if one of the values are invalid or
-// currency codes are not matching (unless currency code is unspecified for
-// both).
-func Sum(l, r pb.Money) (pb.Money, error) {
-	if !IsValid(l) || !IsValid(r) {
+// Sum adds two values. Returns an error if currency codes are not matching or resulting value is invalid.
+func Sum(a, b pb.Money) (pb.Money, error) {
+	if !IsValid(a) || !IsValid(b) {
 		return pb.Money{}, ErrInvalidValue
-	} else if l.GetCurrencyCode() != r.GetCurrencyCode() {
+	} else if a.GetCurrencyCode() != b.GetCurrencyCode() {
 		return pb.Money{}, ErrMismatchingCurrency
 	}
-	units := l.GetUnits() + r.GetUnits()
-	nanos := l.GetNanos() + r.GetNanos()
+
+	units := a.GetUnits() + b.GetUnits()
+	nanos := a.GetNanos() + b.GetNanos()
 
 	if (units == 0 && nanos == 0) || (units > 0 && nanos >= 0) || (units < 0 && nanos <= 0) {
 		// same sign <units, nanos>
 		units += int64(nanos / nanosMod)
 		nanos = nanos % nanosMod
 	} else {
-		// different sign. nanos guaranteed to not to go over the limit
+		// different sign. nanos guaranteed to not be 0 by this time.
 		if units > 0 {
 			units--
 			nanos += nanosMod
@@ -117,16 +121,31 @@ func Sum(l, r pb.Money) (pb.Money, error) {
 	return pb.Money{
 		Units:        units,
 		Nanos:        nanos,
-		CurrencyCode: l.GetCurrencyCode()}, nil
+		CurrencyCode: a.GetCurrencyCode()}, nil
 }
 
-// MultiplySlow is a slow multiplication operation done through adding the value
-// to itself n-1 times.
-func MultiplySlow(m pb.Money, n uint32) pb.Money {
-	out := m
-	for n > 1 {
-		out = Must(Sum(out, m))
-		n--
+// MultiplySlow is a slow multiplication operation done through adding the value to itself n-1 times.
+func MultiplySlow(m pb.Money, n uint32) (pb.Money, error) {
+	if !IsValid(m) {
+		return pb.Money{}, ErrInvalidValue
 	}
-	return out
+	if n == 0 {
+		return pb.Money{
+			Units:        0,
+			Nanos:        0,
+			CurrencyCode: m.GetCurrencyCode(),
+		}, nil
+	}
+	if n == 1 {
+		return m, nil
+	}
+
+	product, err := m, error(nil)
+	for i := uint32(1); i < n; i++ {
+		product, err = Sum(product, m)
+		if err != nil {
+			return pb.Money{}, err
+		}
+	}
+	return product, nil
 }
