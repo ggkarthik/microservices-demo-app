@@ -109,8 +109,9 @@ jobs:
           format: spdx-json
           output-file: sbom-${{ matrix.service }}.spdx.json
           
+      # Update from v3 to v4
       - name: Upload SBOM
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: sbom-${{ matrix.service }}-${{ steps.version.outputs.VERSION || github.sha }}
           path: sbom-${{ matrix.service }}.spdx.json
@@ -143,8 +144,9 @@ jobs:
             echo "VERSION=${{ github.event.inputs.version || 'latest' }}" >> $GITHUB_OUTPUT
           fi
           
+      # Update from v3 to v4
       - name: Download all SBOMs
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           path: ./sboms
           
@@ -154,8 +156,9 @@ jobs:
           cp -r sboms/*/*.json consolidated-sbom-${{ steps.version.outputs.VERSION }}/
           echo "Created consolidated SBOM directory with all service SBOMs"
           
+      # Update from v3 to v4
       - name: Upload consolidated SBOM
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: consolidated-sbom-${{ steps.version.outputs.VERSION }}
           path: consolidated-sbom-${{ steps.version.outputs.VERSION }}/
@@ -207,8 +210,9 @@ jobs:
           # Create a single deployment manifest
           cat release-$VERSION/*.yaml > release-$VERSION/kubernetes-manifests.yaml
 
+      # Update from v3 to v4
       - name: Upload manifests
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: kubernetes-manifests-${{ steps.version.outputs.VERSION }}
           path: release-${{ steps.version.outputs.VERSION }}/kubernetes-manifests.yaml
@@ -221,8 +225,9 @@ jobs:
     permissions:
       contents: write
     steps:
+      # Update from v3 to v4
       - name: Download manifests
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: kubernetes-manifests-${{ github.ref_name }}
           path: ./
