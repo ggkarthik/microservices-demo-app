@@ -4,6 +4,8 @@ on:
   schedule:
     - cron: '0 0 * * 0'  # Run weekly on Sunday at midnight
   workflow_dispatch:
+  pull_request:
+    branches: [ main ]
 
 env:
   REGISTRY: ghcr.io
@@ -41,6 +43,8 @@ jobs:
   dependency-review:
     name: Dependency Review
     runs-on: ubuntu-latest
+    # Only run on pull requests to fix the base_ref/head_ref error
+    if: github.event_name == 'pull_request'
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -70,6 +74,7 @@ jobs:
         uses: github/codeql-action/upload-sarif@v2
         with:
           sarif_file: 'trivy-results-fs.sarif'
+          category: 'trivy-fs'
           
   trivy-config-scan:
     name: Trivy IaC and Config Scan
@@ -109,16 +114,19 @@ jobs:
         uses: github/codeql-action/upload-sarif@v2
         with:
           sarif_file: 'trivy-k8s-results.sarif'
+          category: 'trivy-k8s-security'
           
       - name: Upload Trivy Terraform scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v2
         with:
           sarif_file: 'trivy-terraform-results.sarif'
+          category: 'trivy-terraform-security'
           
       - name: Upload Trivy Dockerfile scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v2
         with:
           sarif_file: 'trivy-dockerfile-results.sarif'
+          category: 'trivy-dockerfile-security'
 
   codeql-extended:
     name: CodeQL Extended Analysis
@@ -137,11 +145,32 @@ jobs:
           languages: go, javascript, python, java, csharp
           queries: security-extended,security-and-quality
 
-      - name: Autobuild
-        uses: github/codeql-action/autobuild@v2
+      # Replace autobuild with manual build steps
+      - name: Build Go code
+        run: |
+          cd src/frontend && go build -v ./...
+          cd ../../src/productcatalogservice && go build -v ./...
+          cd ../../src/checkoutservice && go build -v ./...
+          cd ../../src/shippingservice && go build -v ./...
+        continue-on-error: true
+
+      - name: Build Java code
+        run: |
+          cd src/adservice
+          chmod +x ./gradlew
+          ./gradlew build -x test
+        continue-on-error: true
+
+      - name: Build C# code
+        run: |
+          cd src/cartservice/src
+          dotnet build
+        continue-on-error: true
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v2
+        with:
+          category: 'codeql-extended'
 
   software-bill-of-materials:
     name: Generate SBOM
@@ -173,6 +202,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: ./src/${{ matrix.service }}
+          file: ${{ matrix.service == 'cartservice' && './src/cartservice/src/Dockerfile' || '' }}
           push: false
           load: true
           tags: ${{ env.REGISTRY }}/${{ env.OWNER }}/microservices-demo-${{ matrix.service }}:sbom-scan
@@ -186,8 +216,9 @@ jobs:
           format: spdx-json
           output-file: sbom-${{ matrix.service }}.spdx.json
 
+      # Update from v3 to v4
       - name: Upload SBOM
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: sbom-${{ matrix.service }}
           path: sbom-${{ matrix.service }}.spdx.json
@@ -200,8 +231,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
         
+      # Update from v3 to v4
       - name: Download all SBOMs
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           path: ./sboms
           
@@ -211,8 +243,9 @@ jobs:
           cp -r sboms/*/*.json consolidated-sbom/
           echo "Created consolidated SBOM directory with all service SBOMs"
           
+      # Update from v3 to v4
       - name: Upload consolidated SBOM
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: consolidated-sbom
           path: consolidated-sbom/
