@@ -29,21 +29,19 @@ This document summarizes all the fixes made to the GitHub Actions workflows in t
   - Added Go build commands for frontend, productcatalogservice, checkoutservice, and shippingservice
   - Added Gradle build for Java (adservice)
   - Added dotnet build for C# (cartservice)
-  - Added `continue-on-error: true` to ensure the workflow continues even if some builds fail
+  - Added `continue-on-error: true` to prevent failures from stopping the workflow
 
 ## 5. SARIF Upload Conflicts
 
 - Added unique category names for each SARIF upload to prevent conflicts:
-  - Added `category: 'trivy-k8s'` for Kubernetes manifests
-  - Added `category: 'trivy-terraform'` for Terraform files
-  - Added `category: 'trivy-dockerfile'` for Dockerfile scans
-  - Added `category: 'trivy-${{ matrix.service }}'` for each service's vulnerability scan
-  - Added `category: 'codeql-extended'` for extended CodeQL analysis
+  - Changed `trivy-k8s` to `trivy-k8s-security`
+  - Changed `trivy-terraform` to `trivy-terraform-security`
+  - Changed `trivy-dockerfile` to `trivy-dockerfile-security`
+  - Added service name to each Trivy scan result: `trivy-${{ matrix.service }}`
+  - Added `codeql-extended` category for the extended CodeQL analysis
 
-## 6. Deprecated Actions
+## 6. Updated Deprecated Actions
 
-- Updated all instances of `actions/upload-artifact` from v3 to v4
-- Updated all instances of `actions/download-artifact` from v3 to v4
 - Updated `actions/checkout` from v3 to v4
 - Updated `actions/setup-node` from v3 to v4
 - Updated `docker/setup-buildx-action` from v2 to v3
@@ -53,6 +51,7 @@ This document summarizes all the fixes made to the GitHub Actions workflows in t
 - Updated `trufflesecurity/trufflehog` from v3.42.0 to v3.90.6
 - Updated `anchore/sbom-action` from v0 to v0.20.5
 - Updated `aquasecurity/trivy-action` from master to 0.33.1
+- Updated `actions/upload-artifact` and `actions/download-artifact` from v3 to v4
 
 ## 7. Permissions
 
@@ -60,6 +59,7 @@ This document summarizes all the fixes made to the GitHub Actions workflows in t
   - Added `permissions: contents: read` to jobs that only need read access
   - Added `permissions: security-events: write` to jobs that need to upload security results
   - Added `permissions: packages: write` to jobs that need to publish packages
+  - Added `permissions: actions: read` to all jobs to address GitHub Advanced Security warnings
 
 ## 8. Dependency Updates
 
@@ -71,9 +71,18 @@ This document summarizes all the fixes made to the GitHub Actions workflows in t
 - Updated RSA version from 4.9.1 (non-existent version) to 4.9 (latest stable)
 - Fixed future dates in dependencies (certifi, tzdata, faker)
 
+## 9. Pipeline Summary Improvements
+
+- Added timestamp to the pipeline summary job to show when the pipeline completed
+- Added status badge to the pipeline summary to show the overall status of the pipeline:
+  - ✅ CI Pipeline Status: SUCCESS - when the pipeline succeeds
+  - ❌ CI Pipeline Status: FAILED - when the pipeline fails
+
 ## Next Steps
 
 1. Merge all the PRs in the correct order
 2. Monitor GitHub Actions runs for any remaining errors
 3. Verify that Docker images are built and published correctly
 4. Check repository settings for GitHub Actions and package permissions
+5. Set up branch protection rules to require CI checks to pass before merging
+6. Create documentation for the CI/CD pipeline and how to use it
