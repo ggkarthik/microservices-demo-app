@@ -53,21 +53,6 @@ func init() {
 }
 
 func main() {
-	if os.Getenv("DISABLE_TRACING") == "" {
-		log.Info("Tracing enabled, but temporarily unavailable")
-		log.Info("See https://github.com/GoogleCloudPlatform/microservices-demo/issues/422 for more info.")
-		go initTracing()
-	} else {
-		log.Info("Tracing disabled.")
-	}
-
-	if os.Getenv("DISABLE_PROFILER") == "" {
-		log.Info("Profiling enabled.")
-		go initProfiling("shippingservice", "1.0.0")
-	} else {
-		log.Info("Profiling disabled.")
-	}
-
 	port := defaultPort
 	if value, ok := os.LookupEnv("PORT"); ok {
 		port = value
@@ -81,12 +66,13 @@ func main() {
 
 	var srv *grpc.Server
 	if os.Getenv("DISABLE_STATS") == "" {
-		log.Info("Stats enabled, but temporarily unavailable")
+		log.Info("Stats enabled.")
 		srv = grpc.NewServer()
 	} else {
 		log.Info("Stats disabled.")
 		srv = grpc.NewServer()
 	}
+
 	svc := &server{}
 	pb.RegisterShippingServiceServer(srv, svc)
 	healthpb.RegisterHealthServer(srv, svc)
@@ -100,9 +86,7 @@ func main() {
 }
 
 // server controls RPC service responses.
-type server struct {
-	pb.UnimplementedShippingServiceServer
-}
+type server struct{}
 
 // Check is for health checking.
 func (s *server) Check(ctx context.Context, req *healthpb.HealthCheckRequest) (*healthpb.HealthCheckResponse, error) {
@@ -118,10 +102,16 @@ func (s *server) GetQuote(ctx context.Context, in *pb.GetQuoteRequest) (*pb.GetQ
 	log.Info("[GetQuote] received request")
 	defer log.Info("[GetQuote] completed request")
 
-	// 1. Generate a quote based on the total number of items to be shipped.
-	quote := CreateQuoteFromCount(0)
+	// 1. Our quote system requires the total number of items to be shipped.
+	count := 0
+	for _, item := range in.Items {
+		count += int(item.Quantity)
+	}
 
-	// 2. Generate a response.
+	// 2. Generate a quote based on the total number of items to be shipped.
+	quote := CreateQuoteFromCount(count)
+
+	// 3. Generate a response.
 	return &pb.GetQuoteResponse{
 		CostUsd: &pb.Money{
 			CurrencyCode: "USD",
@@ -138,7 +128,7 @@ func (s *server) ShipOrder(ctx context.Context, in *pb.ShipOrderRequest) (*pb.Sh
 	defer log.Info("[ShipOrder] completed request")
 	// 1. Create a Tracking ID
 	baseAddress := fmt.Sprintf("%s, %s, %s", in.Address.StreetAddress, in.Address.City, in.Address.State)
-	id := CreateTrackingId(baseAddress)
+	id := CreateTrackingID(baseAddress)
 
 	// 2. Generate a response.
 	return &pb.ShipOrderResponse{
