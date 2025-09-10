@@ -11,7 +11,13 @@ This document summarizes all the fixes made to the GitHub Actions workflows in t
 ## 2. Cartservice Dockerfile Path
 
 - Fixed the path to the cartservice Dockerfile in all workflow files
-- Added conditional file path specification: `file: ${{ matrix.service == 'cartservice' && './src/cartservice/src/Dockerfile' || '' }}`
+- Changed from conditional file path specification to separate build steps for cartservice and other services
+- For cartservice, explicitly set:
+  ```yaml
+  context: ./src/cartservice
+  file: ./src/cartservice/src/Dockerfile
+  ```
+- This ensures the correct Dockerfile is used and the build context is properly set
 
 ## 3. Go Linting Error
 
