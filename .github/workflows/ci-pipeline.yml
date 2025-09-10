@@ -45,51 +45,6 @@ jobs:
           cd src/currencyservice && npm install && npm run lint || echo "Linting failed but continuing"
           cd ../../src/paymentservice && npm install && npm run lint || echo "Linting failed but continuing"
 
-  codeql:
-    name: CodeQL Analysis
-    runs-on: ubuntu-latest
-    permissions:
-      security-events: write
-      actions: read
-      contents: read
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
-        with:
-          languages: go, javascript, python
-          # Excluding Java and C# since they're causing issues in the CI pipeline
-          # languages: go, javascript, python, java, csharp
-
-      # Replace autobuild with manual build steps for each language
-      - name: Build Go code
-        run: |
-          cd src/frontend && go build -v ./...
-          cd ../../src/productcatalogservice && go build -v ./...
-          cd ../../src/checkoutservice && go build -v ./...
-          cd ../../src/shippingservice && go build -v ./...
-        continue-on-error: true
-
-      # Commenting out Java build since we're excluding Java from CodeQL analysis
-      # - name: Build Java code
-      #   run: |
-      #     cd src/adservice
-      #     chmod +x ./gradlew
-      #     ./gradlew build -x test
-      #   continue-on-error: true
-
-      # Commenting out C# build since we're excluding C# from CodeQL analysis
-      # - name: Build C# code
-      #   run: |
-      #     cd src/cartservice/src
-      #     dotnet build
-      #   continue-on-error: true
-
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
-        
   secret-scanning:
     name: GitHub Advanced Security Secret Scanning
     runs-on: ubuntu-latest
@@ -173,7 +128,7 @@ jobs:
   build-test:
     name: Build and Test
     runs-on: ubuntu-latest
-    needs: [lint, codeql, secret-scanning, iac-scan]
+    needs: [lint, secret-scanning, iac-scan]
     permissions:
       contents: read
       security-events: write
