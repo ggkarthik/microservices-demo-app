@@ -28,9 +28,10 @@ This file contains code related to the frontend and the "packaging" microservice
 */
 
 var (
-	packagingServiceUrl string
+	packagingServiceURL string
 )
 
+// PackagingInfo represents the physical dimensions and weight of a product's packaging
 type PackagingInfo struct {
 	Weight float32 `json:"weight"`
 	Width  float32 `json:"width"`
@@ -40,16 +41,16 @@ type PackagingInfo struct {
 
 // init() is a special function in Golang that will run when this package is imported.
 func init() {
-	packagingServiceUrl = os.Getenv("PACKAGING_SERVICE_URL")
+	packagingServiceURL = os.Getenv("PACKAGING_SERVICE_URL")
 }
 
 func isPackagingServiceConfigured() bool {
-	return packagingServiceUrl != ""
+	return packagingServiceURL != ""
 }
 
-func httpGetPackagingInfo(productId string) (*PackagingInfo, error) {
+func httpGetPackagingInfo(productID string) (*PackagingInfo, error) {
 	// Make the GET request
-	url := packagingServiceUrl + "/" + productId
+	url := packagingServiceURL + "/" + productID
 	fmt.Println("Requesting packaging info from URL: ", url)
 	resp, err := http.Get(url)
 	if err != nil {
