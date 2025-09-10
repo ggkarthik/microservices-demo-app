@@ -145,7 +145,7 @@ jobs:
           exit-code: '0'
           severity: 'CRITICAL,HIGH'
           
-      - name: Upload Trivy IaC scan results to GitHub Security tab
+      - name: Upload Trivy K8s scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
@@ -307,3 +307,4 @@ jobs:
         run: |
           echo "CI Pipeline completed"
           echo "Images have been built, scanned, and published to GitHub Container Registry"
+          echo "Pipeline completed at: $(date)"
