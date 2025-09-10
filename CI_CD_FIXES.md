@@ -29,6 +29,10 @@ This document summarizes all the fixes made to the GitHub Actions workflows in t
   - Changed `packagingServiceUrl` to `packagingServiceURL`
   - Changed `productId` to `productID`
   - Added comment to the exported `PackagingInfo` struct
+- Fixed comments in `validator.go`:
+  - Added proper comments to all exported types and functions
+  - Fixed comment format for `ValidationErrorResponse` function
+  - Added descriptive comments for all exported structs and methods
 
 ## 4. CodeQL Issues
 
