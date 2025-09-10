@@ -27,7 +27,9 @@ const (
 )
 
 var (
+	// ErrInvalidValue is returned when a money value is invalid
 	ErrInvalidValue        = errors.New("one of the specified money values is invalid")
+	// ErrMismatchingCurrency is returned when currencies don't match
 	ErrMismatchingCurrency = errors.New("mismatching currency codes")
 )
 
@@ -40,10 +42,14 @@ func signMatches(m pb.Money) bool {
 	return m.GetNanos() == 0 || m.GetUnits() == 0 || (m.GetNanos() < 0) == (m.GetUnits() < 0)
 }
 
-func validNanos(nanos int32) bool { return nanosMin <= nanos && nanos <= nanosMax }
+func validNanos(nanos int32) bool {
+	return nanosMin <= nanos && nanos <= nanosMax
+}
 
 // IsZero returns true if the specified money value is equal to zero.
-func IsZero(m pb.Money) bool { return m.GetUnits() == 0 && m.GetNanos() == 0 }
+func IsZero(m pb.Money) bool {
+	return m.GetUnits() == 0 && m.GetNanos() == 0
+}
 
 // IsPositive returns true if the specified money value is valid and is
 // positive.
