@@ -23,8 +23,8 @@ import (
 // seeded determines if the random number generator is ready.
 var seeded bool = false
 
-// CreateTrackingId generates a tracking ID.
-func CreateTrackingId(salt string) string {
+// CreateTrackingID generates a tracking ID.
+func CreateTrackingID(salt string) string {
 	if !seeded {
 		rand.Seed(time.Now().UnixNano())
 		seeded = true
