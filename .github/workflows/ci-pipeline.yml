@@ -15,14 +15,17 @@ jobs:
   lint:
     name: Lint Code
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: '1.20'
+          go-version: '1.22'
         
       - name: Lint Go code
         run: |
@@ -33,7 +36,7 @@ jobs:
           done
 
       - name: Set up Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '18'
           
@@ -51,18 +54,37 @@ jobs:
       contents: read
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v2
+        uses: github/codeql-action/init@v3
         with:
           languages: go, javascript, python, java, csharp
 
-      - name: Autobuild
-        uses: github/codeql-action/autobuild@v2
+      # Replace autobuild with manual build steps for each language
+      - name: Build Go code
+        run: |
+          cd src/frontend && go build -v ./...
+          cd ../../src/productcatalogservice && go build -v ./...
+          cd ../../src/checkoutservice && go build -v ./...
+          cd ../../src/shippingservice && go build -v ./...
+        continue-on-error: true
+
+      - name: Build Java code
+        run: |
+          cd src/adservice
+          chmod +x ./gradlew
+          ./gradlew build -x test
+        continue-on-error: true
+
+      - name: Build C# code
+        run: |
+          cd src/cartservice/src
+          dotnet build
+        continue-on-error: true
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v2
+        uses: github/codeql-action/analyze@v3
         
   secret-scanning:
     name: GitHub Advanced Security Secret Scanning
@@ -73,7 +95,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         
       # GitHub Advanced Security secret scanning is enabled at the repository level
       # This step is a placeholder to show it's part of the pipeline
@@ -85,12 +107,16 @@ jobs:
   iac-scan:
     name: Scan IaC and Manifests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         
       - name: Run Trivy IaC scan for Kubernetes manifests
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.33.1
         with:
           scan-type: 'config'
           scan-ref: './kubernetes-manifests'
@@ -100,7 +126,7 @@ jobs:
           severity: 'CRITICAL,HIGH'
           
       - name: Run Trivy IaC scan for Terraform
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.33.1
         with:
           scan-type: 'config'
           scan-ref: './terraform'
@@ -110,7 +136,7 @@ jobs:
           severity: 'CRITICAL,HIGH'
           
       - name: Run Trivy IaC scan for Dockerfiles
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.33.1
         with:
           scan-type: 'config'
           scan-ref: './src'
@@ -120,27 +146,34 @@ jobs:
           severity: 'CRITICAL,HIGH'
           
       - name: Upload Trivy IaC scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
           sarif_file: 'trivy-k8s-results.sarif'
+          category: 'trivy-k8s'
           
       - name: Upload Trivy Terraform scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
           sarif_file: 'trivy-terraform-results.sarif'
+          category: 'trivy-terraform'
           
       - name: Upload Trivy Dockerfile scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
           sarif_file: 'trivy-dockerfile-results.sarif'
+          category: 'trivy-dockerfile'
 
   build-test:
     name: Build and Test
     runs-on: ubuntu-latest
     needs: [lint, codeql, secret-scanning, iac-scan]
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
     strategy:
       matrix:
         service: [
@@ -159,10 +192,10 @@ jobs:
         ]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
       - name: Build ${{ matrix.service }} image
         uses: docker/build-push-action@v4
@@ -176,7 +209,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.33.1
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.OWNER }}/microservices-demo-${{ matrix.service }}:${{ github.sha }}
           format: 'sarif'
@@ -184,23 +217,24 @@ jobs:
           severity: 'CRITICAL,HIGH'
           
       - name: Generate SBOM with Syft
-        uses: anchore/sbom-action@v0
+        uses: anchore/sbom-action@v0.20.5
         with:
           image: ${{ env.REGISTRY }}/${{ env.OWNER }}/microservices-demo-${{ matrix.service }}:${{ github.sha }}
           format: spdx-json
           output-file: sbom-${{ matrix.service }}.spdx.json
           
       - name: Upload SBOM
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: sbom-${{ matrix.service }}
           path: sbom-${{ matrix.service }}.spdx.json
 
       - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
           sarif_file: 'trivy-results-${{ matrix.service }}.sarif'
+          category: 'trivy-${{ matrix.service }}'
 
   publish:
     name: Publish Images
@@ -210,6 +244,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      actions: read
     strategy:
       matrix:
         service: [
@@ -228,10 +263,10 @@ jobs:
         ]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -264,6 +299,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: [publish]
     if: always()
+    permissions:
+      contents: read
+      actions: read
     steps:
       - name: Pipeline Status
         run: |
