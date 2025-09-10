@@ -156,11 +156,25 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build ${{ matrix.service }} image
+      # Special handling for cartservice
+      - name: Build cartservice image
+        if: matrix.service == 'cartservice'
+        uses: docker/build-push-action@v4
+        with:
+          context: ./src/cartservice
+          file: ./src/cartservice/src/Dockerfile
+          push: false
+          load: true
+          tags: ${{ env.REGISTRY }}/${{ env.OWNER }}/microservices-demo-${{ matrix.service }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Build all other services
+      - name: Build other service images
+        if: matrix.service != 'cartservice'
         uses: docker/build-push-action@v4
         with:
           context: ./src/${{ matrix.service }}
-          file: ${{ matrix.service == 'cartservice' && './src/cartservice/src/Dockerfile' || '' }}
           push: false
           load: true
           tags: ${{ env.REGISTRY }}/${{ env.OWNER }}/microservices-demo-${{ matrix.service }}:${{ github.sha }}
@@ -242,11 +256,25 @@ jobs:
             type=ref,event=tag
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
-      - name: Build and push ${{ matrix.service }} image
+      # Special handling for cartservice
+      - name: Build and push cartservice image
+        if: matrix.service == 'cartservice'
+        uses: docker/build-push-action@v4
+        with:
+          context: ./src/cartservice
+          file: ./src/cartservice/src/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Build and push all other services
+      - name: Build and push other service images
+        if: matrix.service != 'cartservice'
         uses: docker/build-push-action@v4
         with:
           context: ./src/${{ matrix.service }}
-          file: ${{ matrix.service == 'cartservice' && './src/cartservice/src/Dockerfile' || '' }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
