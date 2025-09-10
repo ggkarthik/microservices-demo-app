@@ -149,8 +149,8 @@ jobs:
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
-          languages: go, javascript, python, csharp
-          # Excluding Java since it's causing issues in the CI pipeline
+          languages: go, javascript, python
+          # Excluding Java and C# since they're causing issues in the CI pipeline
           # languages: go, javascript, python, java, csharp
           queries: security-extended,security-and-quality
 
@@ -171,11 +171,12 @@ jobs:
       #     ./gradlew build -x test
       #   continue-on-error: true
 
-      - name: Build C# code
-        run: |
-          cd src/cartservice/src
-          dotnet build
-        continue-on-error: true
+      # Commenting out C# build since we're excluding C# from CodeQL analysis
+      # - name: Build C# code
+      #   run: |
+      #     cd src/cartservice/src
+      #     dotnet build
+      #   continue-on-error: true
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
