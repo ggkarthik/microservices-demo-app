@@ -30,15 +30,18 @@ func init() {
 	validate = validator.New(validator.WithRequiredStructEnabled())
 }
 
+// Payload is an interface for validatable request payloads
 type Payload interface {
 	Validate() error
 }
 
+// AddToCartPayload represents the data needed to add an item to the cart
 type AddToCartPayload struct {
 	Quantity  uint64 `validate:"required,gte=1,lte=10"`
 	ProductID string `validate:"required"`
 }
 
+// PlaceOrderPayload represents the data needed to place an order
 type PlaceOrderPayload struct {
 	Email         string `validate:"required,email"`
 	StreetAddress string `validate:"required,max=512"`
@@ -52,24 +55,27 @@ type PlaceOrderPayload struct {
 	CcCVV         int64  `validate:"required"`
 }
 
+// SetCurrencyPayload represents the data needed to set a currency
 type SetCurrencyPayload struct {
 	Currency string `validate:"required,iso4217"`
 }
 
-// Implementations of the 'Payload' interface.
+// Validate performs validation on the AddToCartPayload struct
 func (ad *AddToCartPayload) Validate() error {
 	return validate.Struct(ad)
 }
 
+// Validate performs validation on the PlaceOrderPayload struct
 func (po *PlaceOrderPayload) Validate() error {
 	return validate.Struct(po)
 }
 
+// Validate performs validation on the SetCurrencyPayload struct
 func (sc *SetCurrencyPayload) Validate() error {
 	return validate.Struct(sc)
 }
 
-// Reusable error response function.
+// ValidationErrorResponse formats validation errors into a user-friendly error message
 func ValidationErrorResponse(err error) error {
 	validationErrs, ok := err.(validator.ValidationErrors)
 	if !ok {
