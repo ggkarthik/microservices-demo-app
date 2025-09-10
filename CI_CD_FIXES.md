@@ -33,6 +33,9 @@ This document summarizes all the fixes made to the GitHub Actions workflows in t
   - Added proper comments to all exported types and functions
   - Fixed comment format for `ValidationErrorResponse` function
   - Added descriptive comments for all exported structs and methods
+- Fixed function naming in `tracker.go` and its references:
+  - Renamed `CreateTrackingId` to `CreateTrackingID` to follow Go naming conventions
+  - Updated references in `main.go` to use the renamed function
 
 ## 4. CodeQL Issues
 
